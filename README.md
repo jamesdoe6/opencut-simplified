@@ -1,154 +1,77 @@
-<table width="100%">
-  <tr>
-    <td align="left" width="120">
-      <img src="apps/web/public/logos/opencut/icon.svg" alt="OpenCut Logo" width="100" />
-    </td>
-    <td align="right">
-      <h1>OpenCut</h1>
-      <h3 style="margin-top: -10px;">A free, open-source video editor for web, desktop, and mobile.</h3>
-    </td>
-  </tr>
-</table>
+OpenCut — Simplified Version (stable fork)
 
-## Sponsors
+This repository is a fork of OpenCut, the free and open-source alternative to CapCut. This version has been fixed and simplified for reliable local deployment on Windows/WSL2, after resolving several build issues encountered on both the main branch (currently undergoing a full rewrite) and on opencut-classic.
+Why this fork exists
 
-Thanks to [Vercel](https://vercel.com?utm_source=github-opencut&utm_campaign=oss) and [fal.ai](https://fal.ai?utm_source=github-opencut&utm_campaign=oss) for their support of open-source software.
+The main repository OpenCut-app/OpenCut is undergoing a complete rewrite (migration to a Rust core) and regularly breaks during build (bun run build). This fork starts from the stable v0.3.0 tag, with additional fixes for a reliable Docker build.
+Prerequisites
 
-<a href="https://vercel.com/oss">
-  <img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />
-</a>
+    Git
 
-<a href="https://fal.ai">
-  <img alt="Powered by fal.ai" src="https://img.shields.io/badge/Powered%20by-fal.ai-000000?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCAxMEwxMy4wOSAxNS43NEwxMiAyMkwxMC45MSAxNS43NEw0IDEwTDEwLjkxIDguMjZMMTIgMloiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPgo=" />
-</a>
+    Bun (curl -fsSL https://bun.sh/install | bash)
 
-## Why?
+    Docker Desktop (with WSL2 integration enabled if on Windows)
 
-- **Privacy**: Your videos stay on your device
-- **Free features**: Most basic CapCut features are now paywalled 
-- **Simple**: People want editors that are easy to use - CapCut proved that
+    A free Freesound account (for sound effects)
 
-## Project Structure
+Installation — From scratch
+1. Clone the repository
 
-- `apps/web/`: Next.js web application
-- `apps/desktop/`: Native desktop app built with GPUI (in progress)
-- `rust/`: Platform-agnostic core: GPU compositor, effects, masks, and WASM bindings. We're actively migrating business logic here from TypeScript.
-- `docs/`: Architecture and subsystem documentation
+bash
+git clone https://github.com/<YOUR_USERNAME>/opencut-simplified.git
+cd opencut-simplified
 
-## Getting Started
+2. Configure the environment
 
-### Prerequisites
+bash
+cp apps/web/.env.example apps/web/.env.local
 
-- [Bun](https://bun.sh/docs/installation)
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+Edit apps/web/.env.local and fill in:
+Variable	Required	Where to get it
+DATABASE_URL	Yes (default value works with local Docker)	—
+UPSTASH_REDIS_REST_URL / TOKEN	Yes (default value works with local Docker)	—
+BETTER_AUTH_SECRET	Yes	Generate with openssl rand -base64 32
+FREESOUND_CLIENT_ID / FREESOUND_API_KEY	Yes, otherwise 401 error on the Sounds panel	freesound.org/apiv2/apply
+MARBLE_WORKSPACE_KEY	No, optional (blog feature only)	—
+3. Start the supporting services (database + Redis) via Docker
 
-> **Note:** Docker is optional but recommended for running the local database and Redis. If you only want to work on frontend features, you can skip it.
+bash
+docker compose up -d db redis serverless-redis-http
 
-### Setup
+    ⚠️ Do not build the app itself through Docker (plain docker compose up -d). The oven/bun:alpine image has a known bug that causes bun install to hang indefinitely on "Resolving dependencies" due to musl libc. Use Bun locally instead (see step 4).
 
-1. Fork and clone the repository
+4. Install dependencies and run the app
 
-2. Copy the environment file:
+bash
+bun install
+bun dev:web
 
-   ```bash
-   # Unix/Linux/Mac
-   cp apps/web/.env.example apps/web/.env.local
+Open http://localhost:3000.
+5. All-in-one command (optional)
 
-   # Windows PowerShell
-   Copy-Item apps/web/.env.example apps/web/.env.local
-   ```
+A start:all script has been added to package.json:
 
-3. Start the database and Redis:
+bash
+bun run start:all
 
-   ```bash
-   docker compose up -d db redis serverless-redis-http
-   ```
+It automatically starts Docker (db + redis) and then the Next.js dev server in a single command.
+Known bugs fixed in this fork
+Bug	Affected file	Fix applied
+isShortcutKey not exported	apps/web/src/actions/keybindings/persistence.ts	Aliased import: isKey as isShortcutKey
+isActionWithOptionalArgs not exported	Same file	See commit history for the actual function name used, confirmed via grep on apps/web/src/actions/index.ts
+Docker build hangs on "Resolving dependencies"	Dockerfile (oven/bun:alpine image)	Workaround: build and run the app with Bun locally, Docker reserved for supporting services (db/redis)
+401 error on the Sound Effects panel	apps/web/src/components/editor/panels/assets/views/sounds.tsx	Provide real FREESOUND_CLIENT_ID / FREESOUND_API_KEY values in .env.local
+Screenshots
 
-4. Install dependencies and start the dev server:
+See the docs/screenshots/ folder:
 
-   ```bash
-   bun install
-   bun dev:web
-   ```
+    homepage.jpg — OpenCut landing page
 
-The application will be available at [http://localhost:3000](http://localhost:3000).
+    new-project.jpg — Editor interface with a new empty project
 
-The `.env.example` has sensible defaults that match the Docker Compose config — it should work out of the box.
+License
 
-### Desktop setup
+This project remains under the MIT License, same as the original OpenCut project. See the LICENSE file.
+Credits
 
-Desktop is opt-in. If you're only working on the web app, skip this entirely.
-
-If you want to get ready for `apps/desktop`, see [`apps/desktop/README.md`](apps/desktop/README.md). It's a two-step setup: Rust toolchain first, then desktop native dependencies.
-
-### Local WASM development
-
-Only needed if you're editing `rust/wasm` and want the web app to use your local build instead of the published package.
-
-1. Build the package once from the repo root:
-
-   ```bash
-   bun run build:wasm
-   ```
-
-2. Register the generated package for linking:
-
-   ```bash
-   cd rust/wasm/pkg
-   bun link
-   ```
-
-3. Link `apps/web` to the local package:
-
-   ```bash
-   cd apps/web
-   bun link opencut-wasm
-   ```
-
-4. Rebuild on changes while you work:
-
-   ```bash
-   bun dev:wasm
-   ```
-
-To switch `apps/web` back to the published package, run:
-
-```bash
-cd apps/web
-bun add opencut-wasm
-```
-
-### Self-Hosting with Docker
-
-To run everything (including a production build of the app) in Docker:
-
-```bash
-docker compose up -d
-```
-
-The app will be available at [http://localhost:3100](http://localhost:3100).
-
-## Contributing
-
-We welcome contributions! While we're actively developing and refactoring certain areas, there are plenty of opportunities to contribute effectively.
-
-**🎯 Focus areas:** Timeline functionality, project management, performance, bug fixes, and UI improvements outside the preview panel.
-
-**⚠️ Avoid for now:** Preview panel enhancements (fonts, stickers, effects) and export functionality - we're refactoring these with a new binary rendering approach.
-
-See our [Contributing Guide](.github/CONTRIBUTING.md) for detailed setup instructions, development guidelines, and complete focus area guidance.
-
-**Quick start for contributors:**
-
-- Fork the repo and clone locally
-- Follow the setup instructions in CONTRIBUTING.md
-- Working on `apps/desktop`? See [`apps/desktop/README.md`](apps/desktop/README.md) for setup
-- Create a feature branch and submit a PR
-
-## License
-
-[MIT LICENSE](LICENSE)
-
----
-
-![Star History Chart](https://api.star-history.com/svg?repos=opencut-app/opencut&type=Date)
+Based on OpenCut-app/OpenCut, created by the OpenCut community. This fork only adds build fixes and documentation to make self-hosting easier.

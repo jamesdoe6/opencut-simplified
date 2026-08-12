@@ -23,4 +23,5 @@ bun.lockb
 
 target/
 
-.cargo-tools/
+.cargo-tools/.env.local
+.env.local
